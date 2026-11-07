@@ -2,53 +2,48 @@
 
 Runs a [Capy](https://capy.ai) **Dock** host on Railway, so you can pick it under **Run on** in Capy.
 
-## Fastest setup: pair from the deploy logs
+## Setup: pair from the deploy logs
 
 1. Deploy the template and open the service's **Deploy Logs**.
-2. Find the `[pairing]` block. Click the link (or scan the QR / enter the code at <https://capy.ai/settings/devices>), choose your org, name the device, pick "setting up right now" and approve.
-3. Done. The host shows online in Capy and stays paired across redeploys (stored on the volume).
+2. Find the `[pairing]` lines and click the link (the code is also printed). Choose your org, name the device, pick "setting up right now" and approve.
+3. Done. The host shows online in Capy and stays paired across redeploys (pairing is stored on the volume).
 
-Security: anyone who can read the project's logs can see the code and could approve it into their own org. On shared projects set `PAIRING_IN_LOGS=false` and use the web terminal below. Logs are only printed for `PAIRING_LOG_MINUTES` (default 15) after each start, and only while the dock screen shows a pairing prompt.
+Pairing is one-time. If the host is already paired, no link is printed.
 
-## Alternative: pair and log in to GitHub from the web terminal (optional)
+## Security
 
-1. Open the service's public URL (Railway generates a domain; `PORT` is `8080`).
-2. Log in with user `capy` and the generated `TERMINAL_PASSWORD` (see the service's Variables tab).
-3. The terminal shows the Dock pairing link, QR and code. Open the link (or go to <https://capy.ai/settings/devices> > Pair a device), pick your org, name the device, choose the "setting up right now" option and approve. Only approve codes you generated.
-4. Optional GitHub login: press `Ctrl-b c` for a new shell window, then
-   ```bash
-   gh auth login        # GitHub.com > HTTPS > login with a web browser (device code)
-   gh auth setup-git
-   git config --global user.name "Your Name"
-   git config --global user.email "you@example.com"
-   capy dock doctor
-   ```
-5. Done. The host shows online in Capy. Pairing and logins are stored on the volume, so redeploys keep them. Detach/close the tab any time (`Ctrl-b d`); Dock keeps running.
+- The pairing link is printed in the logs, so anyone who can read the project's logs could approve it into their own Capy org until you pair. Pair right after deploying. On shared projects set `PAIRING_IN_LOGS=false` and use the web terminal below.
+- After pairing, the link is useless; to invalidate a host, use **Revoke device** in Capy device settings.
+- Threads run with the `capy` user's permissions and can see all of the service's variables.
+- Run one replica only; one user can run one Capy device. The volume must be mounted at `/home/capy`.
 
-No browser? `railway ssh`, `su - capy`, `tmux attach -t dock` works too.
-
-## Variables
+## Variables (all optional)
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PAIRING_IN_LOGS` | `true` | Print the pairing link/code in the deploy logs. Set `false` on shared projects. |
-| `PAIRING_LOG_MINUTES` | `15` | How long after each start to watch for/print the pairing prompt. |
-| `TERMINAL_PASSWORD` | (optional) | Password for the web terminal (needs a public domain). **If unset, the web terminal is disabled.** |
-| `PORT` | `8080` | Port the web terminal listens on. |
+| `PAIRING_IN_LOGS` | `true` | Print the pairing link/code in the deploy logs. |
+| `PAIRING_LOG_MINUTES` | `15` | How long after each start to watch for the pairing prompt. |
 | `CAPY_DIRS` | `/home/capy/workspace` | Comma-separated folders linked to the dock (`--dir`). |
 | `ENABLE_SUDO` | `false` | `true` gives the `capy` user passwordless sudo. |
 | `CAPY_AUTO_UPDATE` | `false` | `true` re-runs the Dock installer on every boot. |
+| `TERMINAL_PASSWORD` | – | Enables a password-protected web terminal (user `capy`, needs a public domain and `PORT=8080`). Off if unset. |
 
-## Security notes
+## Optional: GitHub login / shell access
 
-- Anyone with the web terminal password gets a shell as `capy` and can approve pairing. Use a long random password; consider removing the public domain after setup.
-- Threads run with the `capy` user's permissions and can see all service variables, including `TERMINAL_PASSWORD`.
-- Run one replica only; one user can run one Capy device.
-- Volume must be mounted at `/home/capy`.
-- Unpair: **Revoke device** in Capy device settings.
+Capy may not need `gh` at all; try a thread first. If you need it, use the web terminal (set `TERMINAL_PASSWORD`, `PORT=8080`, generate a domain) or `railway ssh` > `su - capy` > `tmux attach -t dock`, press `Ctrl-b c` for a new window and run:
+
+```bash
+gh auth login        # GitHub.com > HTTPS > login with a web browser
+gh auth setup-git
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+capy dock doctor
+```
+
+Everything is stored on the volume. Remove the domain and `TERMINAL_PASSWORD` afterwards if you don't want a public terminal.
 
 ## Publishing as a Railway template
 
-1. Create a project from this GitHub repo, attach a volume at `/home/capy`, and generate a public domain.
-2. Add variables: `PORT=8080`, `TERMINAL_PASSWORD=${{secret(32)}}` (Railway generates a random value per deploy), plus optional others.
-3. Project Settings > Generate Template from Project, review, publish.
+1. Create a project from this GitHub repo and attach a volume at `/home/capy`.
+2. Project Settings > Generate Template from Project. In the editor, make sure the volume mount is `/home/capy`, and remove `TERMINAL_PASSWORD`, `PORT` and any public domain (the logs cover pairing).
+3. Publish, then deploy it once yourself to confirm the `[pairing]` lines show up.

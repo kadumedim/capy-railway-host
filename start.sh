@@ -45,9 +45,7 @@ if [ -n "${TERMINAL_PASSWORD:-}" ]; then
       echo "[start] ttyd exited, restarting in 5s"; sleep 5
     done
   ) &
-  echo "[start] Web terminal on port ${PORT:-8080} (user: capy). Open the service's public URL."
-else
-  echo "[start] TERMINAL_PASSWORD not set: web terminal disabled (use railway ssh)."
+  echo "[start] Web terminal enabled on port ${PORT:-8080} (user: capy)."
 fi
 
 # --- 3c. Print the pairing link/code to the deploy logs ------------------
