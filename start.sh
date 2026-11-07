@@ -48,31 +48,49 @@ if [ -n "${TERMINAL_PASSWORD:-}" ]; then
   echo "[start] Web terminal enabled on port ${PORT:-8080} (user: capy)."
 fi
 
-# --- 3c. Print the pairing link/code to the deploy logs ------------------
-# Default on, so deploy -> click the link in the logs -> approve -> done.
-# Dock rotates the code roughly every 10 minutes while unpaired, so keep watching;
-# a paired dock shows no pairing box, so nothing is printed.
-# Anyone who can read this project's logs can see the code and could approve it
-# into THEIR org, so set PAIRING_IN_LOGS=false on shared projects.
-# PAIRING_LOG_MINUTES=0 (default) watches forever; set N to stop after N minutes.
-if [ "${PAIRING_IN_LOGS:-true}" = "true" ]; then
-  (
-    mins="${PAIRING_LOG_MINUTES:-0}"
-    end=0; [ "$mins" -gt 0 ] && end=$(( $(date +%s) + mins * 60 ))
-    last=""
-    while [ "$end" -eq 0 ] || [ "$(date +%s)" -lt "$end" ]; do
-      sleep 3
-      # The dock draws a box with a QR next to the text; pull out just the link and code.
-      pane="$(tmux capture-pane -p -J -t "$SESSION" 2>/dev/null)"
+# --- 3c. Pairing helper: link in logs, auto-confirm, connected line --------
+# Flow: deploy -> click the link printed in the logs -> approve in the browser -> done.
+# - PAIRING_IN_LOGS (default true): print the pairing link/code. Dock rotates the
+#   code about every 10 minutes while unpaired, so each new one is printed.
+#   Anyone who can read this project's logs could approve it into THEIR org,
+#   so set false on shared projects.
+# - PAIRING_AUTO_CONFIRM (default true): after you approve in the browser, Dock asks
+#   "Pair this machine with <workspace>?" in the terminal (default Yes). Answer it
+#   with Enter so nobody needs a terminal. Set false to confirm by hand.
+# - Always prints a line when Dock reports "Connected <device> in <workspace>".
+(
+  last_pair=""; last_confirm=""; last_conn=""
+  while true; do
+    sleep 2
+    pane="$(tmux capture-pane -p -J -t "$SESSION" 2>/dev/null)"
+    [ -z "$pane" ] && continue
+
+    if [ "${PAIRING_IN_LOGS:-true}" = "true" ]; then
       url="$(echo "$pane" | grep -oE "https?://[A-Za-z0-9._~:/?#@!\$&'()*+,;=%-]+" | grep -i 'devices/link' | head -n1)"
       code="$(echo "$pane" | grep -oE 'Code[[:space:]]+[A-Z0-9]{3,}-[A-Z0-9]{3,}' | head -n1 | awk '{print $2}')"
-      if [ -n "$url" ] && [ -n "$code" ] && [ "$url|$code" != "$last" ]; then
+      if [ -n "$url" ] && [ -n "$code" ] && [ "$url|$code" != "$last_pair" ]; then
         echo "[pairing] Open this link to pair this host with Capy: $url (code $code)"
-        last="$url|$code"
+        last_pair="$url|$code"
       fi
-    done
-  ) &
-fi
+    fi
+
+    if [ "${PAIRING_AUTO_CONFIRM:-true}" = "true" ]; then
+      q="$(echo "$pane" | grep -E 'Pair this machine with .+\?' | tail -n1 | sed -e 's/^[^A-Za-z]*//' -e 's/[[:space:]]*$//')"
+      # Only answer while the question is the active prompt (not yet followed by "Paired").
+      if [ -n "$q" ] && ! echo "$pane" | grep -q 'Paired' && [ "$q" != "$last_confirm" ]; then
+        echo "[pairing] Approved in browser. Confirming in the terminal: $q"
+        tmux send-keys -t "$SESSION" Enter
+        last_confirm="$q"
+      fi
+    fi
+
+    conn="$(echo "$pane" | grep -E 'Connected[[:space:]]+[^[:space:]]' | tail -n1 | sed -e 's/^[^A-Za-z]*//' -e 's/[[:space:]]*$//')"
+    if [ -n "$conn" ] && [ "$conn" != "$last_conn" ]; then
+      echo "[pairing] $conn"
+      last_conn="$conn"
+    fi
+  done
+) &
 
 # --- 4. Supervise: keep a tmux session running the dock -------------------
 echo "[start] Dock supervisor running."
