@@ -58,6 +58,29 @@ fi
 #   "Pair this machine with <workspace>?" in the terminal (default Yes). Answer it
 #   with Enter so nobody needs a terminal. Set false to confirm by hand.
 # - Always prints a line when Dock reports "Connected <device> in <workspace>".
+# Answer Dock's "Pair this machine with <workspace>?" prompt with Yes.
+# Enter alone would pick the default (No), so press "y" and verify what is selected.
+confirm_pair() {
+  local p tries
+  tmux send-keys -t "$SESSION" y
+  for tries in 1 2 3 4 5; do
+    sleep 1
+    p="$(tmux capture-pane -p -J -t "$SESSION" 2>/dev/null)"
+    echo "$p" | grep -qi 'declined' && return 1
+    echo "$p" | grep -qE 'Paired' && return 0
+    # Submitted answer is printed on the line after the question.
+    if echo "$p" | grep -A1 -E 'Pair this machine with .+\?' | tail -n1 | grep -qE '^[^A-Za-z]*Yes[[:space:]]*$'; then return 0; fi
+    if echo "$p" | grep -A1 -E 'Pair this machine with .+\?' | tail -n1 | grep -qE '^[^A-Za-z]*No[[:space:]]*$'; then return 1; fi
+    # Prompt still open: submit only if Yes is the highlighted option, else toggle.
+    if echo "$p" | grep -qE '(●|\(•\)|\[x\]|>)[[:space:]]*Yes'; then
+      tmux send-keys -t "$SESSION" Enter
+    else
+      tmux send-keys -t "$SESSION" Right
+    fi
+  done
+  return 1
+}
+
 (
   last_pair=""; last_confirm=""; last_conn=""
   while true; do
@@ -76,11 +99,13 @@ fi
 
     if [ "${PAIRING_AUTO_CONFIRM:-true}" = "true" ]; then
       q="$(echo "$pane" | grep -E 'Pair this machine with .+\?' | tail -n1 | sed -e 's/^[^A-Za-z]*//' -e 's/[[:space:]]*$//')"
-      # Only answer while the question is the active prompt (not yet followed by "Paired").
-      if [ -n "$q" ] && ! echo "$pane" | grep -q 'Paired' && [ "$q" != "$last_confirm" ]; then
-        echo "[pairing] Approved in browser. Confirming in the terminal: $q"
-        tmux send-keys -t "$SESSION" Enter
+      if [ -z "$q" ]; then
+        last_confirm=""   # prompt gone (new pairing attempt will ask again)
+      elif [ "$q" != "$last_confirm" ] && ! echo "$pane" | grep -qE 'Paired|declined'; then
         last_confirm="$q"
+        echo "[pairing] Approved in browser. Confirming in the terminal: $q"
+        echo "$pane" | grep -A3 -F "$q" | sed 's/^/[pairing]   | /'
+        confirm_pair && echo "[pairing] Confirmed (Yes)" || echo "[pairing] Could not confirm automatically; open the web terminal or railway ssh and answer the prompt"
       fi
     fi
 

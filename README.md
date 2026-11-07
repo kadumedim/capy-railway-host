@@ -22,7 +22,7 @@ Dock rotates the code about every 10 minutes while unpaired, and each new link i
 | Variable | Default | Purpose |
 |---|---|---|
 | `PAIRING_IN_LOGS` | `true` | Print the pairing link/code in the deploy logs. |
-| `PAIRING_AUTO_CONFIRM` | `true` | Answer Dock's terminal prompt "Pair this machine with ...?" with Enter (default Yes) after you approve in the browser. Set `false` to confirm by hand. |
+| `PAIRING_AUTO_CONFIRM` | `true` | Answer Dock's terminal prompt "Pair this machine with ...?" with Yes (the default is No, so the script presses `y` and checks) after you approve in the browser. Set `false` to confirm by hand. |
 | `CAPY_DIRS` | `/home/capy/workspace` | Comma-separated folders linked to the dock (`--dir`). |
 | `ENABLE_SUDO` | `false` | `true` gives the `capy` user passwordless sudo. |
 | `CAPY_AUTO_UPDATE` | `false` | `true` re-runs the Dock installer on every boot. |

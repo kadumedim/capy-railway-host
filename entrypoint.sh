@@ -1,4 +1,4 @@
-#!/bin/bash
+auto #!/bin/bash
 # Runs as root: fix ownership of the Railway volume (mounted root-owned),
 # then drop to the unprivileged `capy` user, which Dock requires.
 set -euo pipefail
