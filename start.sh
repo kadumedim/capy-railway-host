@@ -62,15 +62,15 @@ if [ "${PAIRING_IN_LOGS:-true}" = "true" ]; then
     last=""
     while [ "$(date +%s)" -lt "$end" ]; do
       sleep 3
-      # Keep only text lines that carry the link/code; QR art has no letters/digits.
-      info="$(tmux capture-pane -p -J -t "$SESSION" 2>/dev/null \
-        | grep -E 'https?://|[Cc]ode|[Pp]air' \
-        | grep -E '[A-Za-z0-9]{3}' \
-        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | awk '!seen[$0]++')"
-      if [ -n "$info" ] && [ "$info" != "$last" ]; then
-        echo "[pairing] ---- Capy Dock pairing: open the link and approve ----"
-        echo "$info"
-        echo "[pairing] -------------------------------------------------------"
+      # The dock draws a box with a QR next to the text; pull out just the link and code.
+      pane="$(tmux capture-pane -p -J -t "$SESSION" 2>/dev/null)"
+      url="$(echo "$pane" | grep -oE "https?://[A-Za-z0-9._~:/?#@!\$&'()*+,;=%-]+" | grep -i 'capy' | head -n1)"
+      code="$(echo "$pane" | grep -oE 'Code[[:space:]]+[A-Z0-9]{3,}-[A-Z0-9]{3,}' | head -n1 | awk '{print $2}')"
+      info="$url $code"
+      if [ -n "$url" ] && [ "$info" != "$last" ]; then
+        echo "[pairing] Open this link to pair this host with Capy:"
+        echo "[pairing]   $url"
+        [ -n "$code" ] && echo "[pairing] Code: $code"
         last="$info"
       fi
     done
