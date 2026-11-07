@@ -2,40 +2,43 @@
 
 Runs a [Capy](https://capy.ai) **Dock** host on Railway, so you can pick it under **Run on** in Capy.
 
-## One-time pairing (required after first deploy)
+## Setup (after deploying the template)
 
-Dock pairing is an interactive browser approval, so it can't be automated.
+1. Open the service's public URL (Railway generates a domain; `PORT` is `8080`).
+2. Log in with user `capy` and the generated `TERMINAL_PASSWORD` (see the service's Variables tab).
+3. The terminal shows the Dock pairing link, QR and code. Open the link (or go to <https://capy.ai/settings/devices> > Pair a device), pick your org, name the device, choose the "setting up right now" option and approve. Only approve codes you generated.
+4. Optional GitHub login: press `Ctrl-b c` for a new shell window, then
+   ```bash
+   gh auth login        # GitHub.com > HTTPS > login with a web browser (device code)
+   gh auth setup-git
+   git config --global user.name "Your Name"
+   git config --global user.email "you@example.com"
+   capy dock doctor
+   ```
+5. Done. The host shows online in Capy. Pairing and logins are stored on the volume, so redeploys keep them. Detach/close the tab any time (`Ctrl-b d`); Dock keeps running.
 
-1. Deploy the template.
-2. Open a shell in the service (`railway ssh`, or the service's shell in the dashboard).
-3. Run `tmux attach -t dock`.
-4. Open the link / scan the QR / enter the code at <https://capy.ai/settings/devices>, choose your org, name the device, and approve. Only approve codes you generated.
-5. Detach with `Ctrl-b d`. Done: the host shows online in Capy.
-
-Pairing is stored in the volume (`/home/capy/.capy`), so redeploys and restarts stay paired.
+No browser? `railway ssh`, `su - capy`, `tmux attach -t dock` works too.
 
 ## Variables
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `TERMINAL_PASSWORD` | (template generates it) | Password for the web terminal. **If unset, the web terminal is disabled.** |
+| `PORT` | `8080` | Port the web terminal listens on. |
 | `CAPY_DIRS` | `/home/capy/workspace` | Comma-separated folders linked to the dock (`--dir`). |
-| `GH_TOKEN` | – | GitHub token for `gh` and git-over-https (repo access for threads). |
-| `GIT_USER_NAME` / `GIT_USER_EMAIL` | – | Git identity for commits. |
 | `ENABLE_SUDO` | `false` | `true` gives the `capy` user passwordless sudo. |
 | `CAPY_AUTO_UPDATE` | `false` | `true` re-runs the Dock installer on every boot. |
 
-## Notes
+## Security notes
 
-- Volume must be mounted at `/home/capy`.
+- Anyone with the web terminal password gets a shell as `capy` and can approve pairing. Use a long random password; consider removing the public domain after setup.
+- Threads run with the `capy` user's permissions and can see all service variables, including `TERMINAL_PASSWORD`.
 - Run one replica only; one user can run one Capy device.
-- Threads run with the `capy` user's permissions and can see all service variables. Don't put secrets in this service you wouldn't give to Capy.
-- Check health: `capy dock doctor`, `capy dock status`.
+- Volume must be mounted at `/home/capy`.
 - Unpair: **Revoke device** in Capy device settings.
 
 ## Publishing as a Railway template
 
-1. Push this folder to a GitHub repo.
-2. In Railway: create a project, **+ New > GitHub Repo**, pick the repo.
-3. Service **Settings > Volumes**: add a volume at `/home/capy`.
-4. Add variables from the table above (leave `GH_TOKEN` blank in the template; mark it as user-supplied).
-5. Workspace **Settings > Templates > Create Template** (or Project settings > "Generate Template from Project"), select the project, publish.
+1. Create a project from this GitHub repo, attach a volume at `/home/capy`, and generate a public domain.
+2. Add variables: `PORT=8080`, `TERMINAL_PASSWORD=${{secret(32)}}` (Railway generates a random value per deploy), plus optional others.
+3. Project Settings > Generate Template from Project, review, publish.

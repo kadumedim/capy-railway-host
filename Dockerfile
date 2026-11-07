@@ -24,6 +24,12 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends nodejs \
  && rm -rf /var/lib/apt/lists/*
 
+# ttyd: web terminal so pairing / gh login can be done from the browser.
+RUN arch="$(uname -m)" \
+ && curl -fsSL -o /usr/local/bin/ttyd \
+      "https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.${arch}" \
+ && chmod +x /usr/local/bin/ttyd
+
 # Dock refuses to install/run as root, so use a dedicated user.
 # Threads get this user's permissions (passwordless sudo is optional, see ENABLE_SUDO).
 RUN useradd --create-home --shell /bin/bash --uid 1000 "$CAPY_USER"

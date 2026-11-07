@@ -20,12 +20,9 @@ fi
 grep -q '.capy/bin' "$HOME/.bashrc" 2>/dev/null || \
   echo 'export PATH="$HOME/.capy/bin:$PATH"' >> "$HOME/.bashrc"
 
-# --- 2. Git / GitHub setup (optional) ------------------------------------
-[ -n "${GIT_USER_NAME:-}" ]  && git config --global user.name  "$GIT_USER_NAME"
-[ -n "${GIT_USER_EMAIL:-}" ] && git config --global user.email "$GIT_USER_EMAIL"
-if [ -n "${GH_TOKEN:-}${GITHUB_TOKEN:-}" ]; then
-  gh auth setup-git 2>/dev/null || true   # lets git over https use the token
-fi
+# --- 2. Git / GitHub: nothing to do here ---------------------------------
+# Log in once from a shell (`gh auth login`, `gh auth setup-git`,
+# `git config --global user.name/email`). It is stored in the volume.
 
 # --- 3. Build the dock command -------------------------------------------
 DIR_ARGS=()
@@ -35,6 +32,23 @@ for d in "${_dirs[@]}"; do
   mkdir -p "$d"; DIR_ARGS+=(--dir "$d")
 done
 DOCK_CMD="capy dock --verbose ${DIR_ARGS[*]@Q}"
+
+# --- 3b. Password-protected web terminal (pairing + gh login from browser) ---
+# Only starts if TERMINAL_PASSWORD is set: an exposed pairing code could be
+# approved by someone else and hijack this host.
+if [ -n "${TERMINAL_PASSWORD:-}" ]; then
+  (
+    while true; do
+      # tmux attach fails until the supervisor below has created the session.
+      ttyd -W -p "${PORT:-8080}" -c "capy:${TERMINAL_PASSWORD}" \
+        bash -lc 'until tmux has-session -t dock 2>/dev/null; do sleep 1; done; exec tmux attach -t dock'
+      echo "[start] ttyd exited, restarting in 5s"; sleep 5
+    done
+  ) &
+  echo "[start] Web terminal on port ${PORT:-8080} (user: capy). Open the service's public URL."
+else
+  echo "[start] TERMINAL_PASSWORD not set: web terminal disabled (use railway ssh)."
+fi
 
 # --- 4. Supervise: keep a tmux session running the dock -------------------
 cat <<EOF
