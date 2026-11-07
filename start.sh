@@ -40,7 +40,7 @@ if [ -n "${TERMINAL_PASSWORD:-}" ]; then
   (
     while true; do
       # tmux attach fails until the supervisor below has created the session.
-      ttyd -W -p "${PORT:-8080}" -c "capy:${TERMINAL_PASSWORD}" \
+      ttyd -W -d 1 -p "${PORT:-8080}" -c "capy:${TERMINAL_PASSWORD}" \
         bash -lc 'until tmux has-session -t dock 2>/dev/null; do sleep 1; done; exec tmux attach -t dock'
       echo "[start] ttyd exited, restarting in 5s"; sleep 5
     done
