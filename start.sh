@@ -62,23 +62,23 @@ if [ "${PAIRING_IN_LOGS:-true}" = "true" ]; then
     last=""
     while [ "$(date +%s)" -lt "$end" ]; do
       sleep 3
-      screen="$(tmux capture-pane -p -J -t "$SESSION" 2>/dev/null | sed -e 's/[[:space:]]*$//' | cat -s)"
-      if echo "$screen" | grep -qi 'pair' && [ "$screen" != "$last" ]; then
-        echo "[pairing] ======== Capy Dock pairing (open the link, approve) ========"
-        echo "$screen"
-        echo "[pairing] ============================================================"
-        last="$screen"
+      # Keep only text lines that carry the link/code; QR art has no letters/digits.
+      info="$(tmux capture-pane -p -J -t "$SESSION" 2>/dev/null \
+        | grep -E 'https?://|[Cc]ode|[Pp]air' \
+        | grep -E '[A-Za-z0-9]{3}' \
+        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | awk '!seen[$0]++')"
+      if [ -n "$info" ] && [ "$info" != "$last" ]; then
+        echo "[pairing] ---- Capy Dock pairing: open the link and approve ----"
+        echo "$info"
+        echo "[pairing] -------------------------------------------------------"
+        last="$info"
       fi
     done
   ) &
 fi
 
 # --- 4. Supervise: keep a tmux session running the dock -------------------
-cat <<EOF
-[start] Dock supervisor running.
-[start] FIRST TIME ONLY: open a shell in this service (Railway > service > ... > "Open shell",
-[start] or: railway ssh) and run:  tmux attach -t $SESSION   -> follow the pairing link/code.
-EOF
+echo "[start] Dock supervisor running."
 
 while true; do
   if ! tmux has-session -t "$SESSION" 2>/dev/null; then
