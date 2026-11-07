@@ -8,7 +8,7 @@ Runs a [Capy](https://capy.ai) **Dock** host on Railway, so you can pick it unde
 2. Find the `[pairing]` lines and click the link (the code is also printed). Choose your org, name the device, pick "setting up right now" and approve.
 3. Done. The host shows online in Capy and stays paired across redeploys (pairing is stored on the volume).
 
-Pairing is one-time. If the host is already paired, no link is printed.
+Dock rotates the code about every 10 minutes while unpaired, and each new link is printed as it appears. Pairing is one-time: once paired, nothing more is printed.
 
 ## Security
 
@@ -22,7 +22,7 @@ Pairing is one-time. If the host is already paired, no link is printed.
 | Variable | Default | Purpose |
 |---|---|---|
 | `PAIRING_IN_LOGS` | `true` | Print the pairing link/code in the deploy logs. |
-| `PAIRING_LOG_MINUTES` | `15` | How long after each start to watch for the pairing prompt. |
+| `PAIRING_LOG_MINUTES` | `0` | `0` watches forever (prints each new code while unpaired). Set N to stop after N minutes. |
 | `CAPY_DIRS` | `/home/capy/workspace` | Comma-separated folders linked to the dock (`--dir`). |
 | `ENABLE_SUDO` | `false` | `true` gives the `capy` user passwordless sudo. |
 | `CAPY_AUTO_UPDATE` | `false` | `true` re-runs the Dock installer on every boot. |

@@ -50,26 +50,25 @@ fi
 
 # --- 3c. Print the pairing link/code to the deploy logs ------------------
 # Default on, so deploy -> click the link in the logs -> approve -> done.
+# Dock rotates the code roughly every 10 minutes while unpaired, so keep watching;
+# a paired dock shows no pairing box, so nothing is printed.
 # Anyone who can read this project's logs can see the code and could approve it
 # into THEIR org, so set PAIRING_IN_LOGS=false on shared projects.
-# Only runs for the first PAIRING_LOG_MINUTES after each container start, and
-# only prints when the dock screen mentions pairing and has changed.
+# PAIRING_LOG_MINUTES=0 (default) watches forever; set N to stop after N minutes.
 if [ "${PAIRING_IN_LOGS:-true}" = "true" ]; then
   (
-    end=$(( $(date +%s) + ${PAIRING_LOG_MINUTES:-15} * 60 ))
+    mins="${PAIRING_LOG_MINUTES:-0}"
+    end=0; [ "$mins" -gt 0 ] && end=$(( $(date +%s) + mins * 60 ))
     last=""
-    while [ "$(date +%s)" -lt "$end" ]; do
+    while [ "$end" -eq 0 ] || [ "$(date +%s)" -lt "$end" ]; do
       sleep 3
       # The dock draws a box with a QR next to the text; pull out just the link and code.
       pane="$(tmux capture-pane -p -J -t "$SESSION" 2>/dev/null)"
-      url="$(echo "$pane" | grep -oE "https?://[A-Za-z0-9._~:/?#@!\$&'()*+,;=%-]+" | grep -i 'capy' | head -n1)"
+      url="$(echo "$pane" | grep -oE "https?://[A-Za-z0-9._~:/?#@!\$&'()*+,;=%-]+" | grep -i 'devices/link' | head -n1)"
       code="$(echo "$pane" | grep -oE 'Code[[:space:]]+[A-Z0-9]{3,}-[A-Z0-9]{3,}' | head -n1 | awk '{print $2}')"
-      info="$url $code"
-      if [ -n "$url" ] && [ "$info" != "$last" ]; then
-        echo "[pairing] Open this link to pair this host with Capy:"
-        echo "[pairing]   $url"
-        [ -n "$code" ] && echo "[pairing] Code: $code"
-        last="$info"
+      if [ -n "$url" ] && [ -n "$code" ] && [ "$url|$code" != "$last" ]; then
+        echo "[pairing] Open this link to pair this host with Capy: $url (code $code)"
+        last="$url|$code"
       fi
     done
   ) &
