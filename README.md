@@ -2,7 +2,15 @@
 
 Runs a [Capy](https://capy.ai) **Dock** host on Railway, so you can pick it under **Run on** in Capy.
 
-## Setup (after deploying the template)
+## Fastest setup: pair from the deploy logs
+
+1. Deploy the template and open the service's **Deploy Logs**.
+2. Find the `[pairing]` block. Click the link (or scan the QR / enter the code at <https://capy.ai/settings/devices>), choose your org, name the device, pick "setting up right now" and approve.
+3. Done. The host shows online in Capy and stays paired across redeploys (stored on the volume).
+
+Security: anyone who can read the project's logs can see the code and could approve it into their own org. On shared projects set `PAIRING_IN_LOGS=false` and use the web terminal below. Logs are only printed for `PAIRING_LOG_MINUTES` (default 15) after each start, and only while the dock screen shows a pairing prompt.
+
+## Alternative: pair and log in to GitHub from the web terminal (optional)
 
 1. Open the service's public URL (Railway generates a domain; `PORT` is `8080`).
 2. Log in with user `capy` and the generated `TERMINAL_PASSWORD` (see the service's Variables tab).
@@ -23,7 +31,9 @@ No browser? `railway ssh`, `su - capy`, `tmux attach -t dock` works too.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `TERMINAL_PASSWORD` | (template generates it) | Password for the web terminal. **If unset, the web terminal is disabled.** |
+| `PAIRING_IN_LOGS` | `true` | Print the pairing link/code in the deploy logs. Set `false` on shared projects. |
+| `PAIRING_LOG_MINUTES` | `15` | How long after each start to watch for/print the pairing prompt. |
+| `TERMINAL_PASSWORD` | (optional) | Password for the web terminal (needs a public domain). **If unset, the web terminal is disabled.** |
 | `PORT` | `8080` | Port the web terminal listens on. |
 | `CAPY_DIRS` | `/home/capy/workspace` | Comma-separated folders linked to the dock (`--dir`). |
 | `ENABLE_SUDO` | `false` | `true` gives the `capy` user passwordless sudo. |

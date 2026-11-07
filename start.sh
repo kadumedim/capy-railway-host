@@ -50,6 +50,29 @@ else
   echo "[start] TERMINAL_PASSWORD not set: web terminal disabled (use railway ssh)."
 fi
 
+# --- 3c. Print the pairing link/code to the deploy logs ------------------
+# Default on, so deploy -> click the link in the logs -> approve -> done.
+# Anyone who can read this project's logs can see the code and could approve it
+# into THEIR org, so set PAIRING_IN_LOGS=false on shared projects.
+# Only runs for the first PAIRING_LOG_MINUTES after each container start, and
+# only prints when the dock screen mentions pairing and has changed.
+if [ "${PAIRING_IN_LOGS:-true}" = "true" ]; then
+  (
+    end=$(( $(date +%s) + ${PAIRING_LOG_MINUTES:-15} * 60 ))
+    last=""
+    while [ "$(date +%s)" -lt "$end" ]; do
+      sleep 3
+      screen="$(tmux capture-pane -p -J -t "$SESSION" 2>/dev/null | sed -e 's/[[:space:]]*$//' | cat -s)"
+      if echo "$screen" | grep -qi 'pair' && [ "$screen" != "$last" ]; then
+        echo "[pairing] ======== Capy Dock pairing (open the link, approve) ========"
+        echo "$screen"
+        echo "[pairing] ============================================================"
+        last="$screen"
+      fi
+    done
+  ) &
+fi
+
 # --- 4. Supervise: keep a tmux session running the dock -------------------
 cat <<EOF
 [start] Dock supervisor running.
